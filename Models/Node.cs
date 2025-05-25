@@ -30,9 +30,9 @@ namespace SignalControl.Models
         public bool IsActive { get; set; }
         public bool IsSignalPassing { get; set; }
         public Rectangle Bounds { get; private set; }
+        public int X { get; private set; }
+        public int Y { get; private set; }
         
-        private Vector2 _position;
-        private int _size;
         private float _animationTime = 0;
         
         // Цвета для разных типов узлов
@@ -43,16 +43,14 @@ namespace SignalControl.Models
         private static readonly Color CheckpointColor = new Color((byte)255, (byte)167, (byte)38); // Оранжевый
         private static readonly Color SignalColor = new Color((byte)255, (byte)255, (byte)0);      // Желтый для сигнала
         
-        public Node(Vector2 position, int size, NodeType type = NodeType.Normal)
+        public Node(int x, int y, NodeType type, Direction direction)
         {
-            _position = position;
-            _size = size;
+            X = x;
+            Y = y;
             Type = type;
-            Direction = Direction.Right; // Направление по умолчанию
-            IsActive = (type != NodeType.Blocking); // Блокирующие узлы начинаются неактивными
+            Direction = direction;
             IsSignalPassing = false;
-            
-            Bounds = new Rectangle((int)position.X, (int)position.Y, size, size);
+            IsActive = type != NodeType.Blocking;
         }
         
         public void RotateDirection()
@@ -64,7 +62,7 @@ namespace SignalControl.Models
                 Direction.Right => Direction.Down,
                 Direction.Down => Direction.Left,
                 Direction.Left => Direction.Up,
-                _ => Direction
+                _ => Direction.Right
             };
         }
         
@@ -74,49 +72,104 @@ namespace SignalControl.Models
             _animationTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
         }
         
-        public void Draw(SpriteBatch spriteBatch)
+        public void Draw(SpriteBatch spriteBatch, Vector2 position, int size)
         {
-            Color nodeColor = GetNodeColor();
-            
-            // Фоновый прямоугольник узла
-            Rectangle innerRect = new Rectangle(
-                Bounds.X + 2, 
-                Bounds.Y + 2, 
-                Bounds.Width - 4, 
-                Bounds.Height - 4
+            // Update bounds
+            Bounds = new Rectangle((int)position.X, (int)position.Y, size, size);
+
+            // Draw node background
+            Texture2D pixel = TextureManager.GetPixelTexture();
+            Color backgroundColor = GetBackgroundColor();
+            spriteBatch.Draw(pixel, Bounds, backgroundColor);
+
+            // Draw node border (черная обводка)
+            int borderThickness = 1;
+            Color borderColor = Color.Black;
+            // Top border
+            spriteBatch.Draw(pixel, new Rectangle(Bounds.X, Bounds.Y, Bounds.Width, borderThickness), borderColor);
+            // Bottom border
+            spriteBatch.Draw(pixel, new Rectangle(Bounds.X, Bounds.Y + Bounds.Height - borderThickness, Bounds.Width, borderThickness), borderColor);
+            // Left border
+            spriteBatch.Draw(pixel, new Rectangle(Bounds.X, Bounds.Y, borderThickness, Bounds.Height), borderColor);
+            // Right border
+            spriteBatch.Draw(pixel, new Rectangle(Bounds.X + Bounds.Width - borderThickness, Bounds.Y, borderThickness, Bounds.Height), borderColor);
+
+            // Draw arrow
+            if (Type != NodeType.Blocking || IsActive)
+            {
+                DrawArrow(spriteBatch, position, size);
+            }
+        }
+        
+        private void DrawBorder(SpriteBatch spriteBatch, Rectangle rect, Color color)
+        {
+            Texture2D pixel = TextureManager.GetPixelTexture();
+            int borderThickness = 1;
+
+            // Top border
+            spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Y, rect.Width, borderThickness), color);
+            // Bottom border
+            spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Y + rect.Height - borderThickness, rect.Width, borderThickness), color);
+            // Left border
+            spriteBatch.Draw(pixel, new Rectangle(rect.X, rect.Y, borderThickness, rect.Height), color);
+            // Right border
+            spriteBatch.Draw(pixel, new Rectangle(rect.X + rect.Width - borderThickness, rect.Y, borderThickness, rect.Height), color);
+        }
+        
+        private void DrawArrow(SpriteBatch spriteBatch, Vector2 position, int size)
+        {
+            Texture2D arrowTexture = TextureManager.GetArrowTexture();
+            float rotation = GetRotationForDirection();
+            Vector2 origin = new Vector2(arrowTexture.Width / 2, arrowTexture.Height / 2);
+            Vector2 center = position + new Vector2(size / 2, size / 2);
+            float scale = size / (float)arrowTexture.Width * 0.5f;
+
+            spriteBatch.Draw(
+                arrowTexture,
+                center,
+                null,
+                Color.Black,
+                rotation,
+                origin,
+                scale,
+                SpriteEffects.None,
+                0
             );
-            
-            spriteBatch.Draw(GetTexture(spriteBatch.GraphicsDevice), innerRect, nodeColor);
-            
-            // Рамка узла
-            int borderThickness = IsSignalPassing ? 3 : 1;
-            Color borderColor = IsSignalPassing ? SignalColor : Color.Black;
-            DrawRectangleOutline(spriteBatch, Bounds, borderColor, borderThickness);
-            
-            // Значок в зависимости от типа узла
-            DrawNodeIcon(spriteBatch);
-            
-            // Индикатор направления
-            DrawDirectionIndicator(spriteBatch);
-            
-            // Анимация для активного сигнала
+        }
+        
+        private float GetRotationForDirection()
+        {
+            return Direction switch
+            {
+                Direction.Up => -MathHelper.PiOver2,
+                Direction.Right => 0,
+                Direction.Down => MathHelper.PiOver2,
+                Direction.Left => MathHelper.Pi,
+                _ => 0
+            };
+        }
+        
+        private Color GetBackgroundColor()
+        {
             if (IsSignalPassing)
             {
-                float pulseFactor = (float)Math.Sin(_animationTime * 5) * 0.2f + 0.8f;
-                Rectangle pulseRect = new Rectangle(
-                    Bounds.X + Bounds.Width/4, 
-                    Bounds.Y + Bounds.Height/4, 
-                    Bounds.Width/2, 
-                    Bounds.Height/2
-                );
-                spriteBatch.Draw(GetTexture(spriteBatch.GraphicsDevice), pulseRect, SignalColor * pulseFactor);
+                return new Color(0, 230, 118); // Зеленый цвет для активного сигнала
             }
+
+            return Type switch
+            {
+                NodeType.Start => new Color(46, 204, 113), // Зеленый
+                NodeType.Finish => new Color(231, 76, 60), // Красный
+                NodeType.Checkpoint => IsActive ? new Color(241, 196, 15) : new Color(243, 156, 18), // Желтый
+                NodeType.Blocking => IsActive ? Color.LightGray : Color.DarkGray,
+                _ => Color.LightGray
+            };
         }
         
         private void DrawNodeIcon(SpriteBatch spriteBatch)
         {
             Texture2D pixel = GetTexture(spriteBatch.GraphicsDevice);
-            int iconSize = _size / 3;
+            int iconSize = Bounds.Width / 3;
             Vector2 center = new Vector2(Bounds.X + Bounds.Width / 2, Bounds.Y + Bounds.Height / 2);
             
             switch (Type)
@@ -281,56 +334,6 @@ namespace SignalControl.Models
                 NodeType.Checkpoint => IsActive ? CheckpointColor : Color.Lerp(CheckpointColor, BlockingColor, 0.5f),
                 _ => NormalColor
             };
-        }
-        
-        private void DrawDirectionIndicator(SpriteBatch spriteBatch)
-        {
-            // Используем текстуру стрелки из TextureManager
-            Vector2 center = new Vector2(Bounds.X + Bounds.Width / 2, Bounds.Y + Bounds.Height / 2);
-            
-            // Определяем позицию для отрисовки стрелки (центрируем в ячейке)
-            int arrowSize = _size / 2;
-            Vector2 arrowPosition = new Vector2(
-                center.X - arrowSize / 2,
-                center.Y - arrowSize / 2
-            );
-            
-            // Отрисовываем стрелку с помощью TextureManager
-            Managers.TextureManager.DrawArrow(spriteBatch, Direction, arrowPosition, 0.5f);
-        }
-        
-        private void DrawLine(SpriteBatch spriteBatch, Vector2 start, Vector2 end, Color color, int thickness)
-        {
-            Vector2 edge = end - start;
-            float angle = (float)Math.Atan2(edge.Y, edge.X);
-            
-            spriteBatch.Draw(
-                GetTexture(spriteBatch.GraphicsDevice),
-                new Rectangle((int)start.X, (int)start.Y, (int)edge.Length(), thickness),
-                null,
-                color,
-                angle,
-                new Vector2(0, 0),
-                SpriteEffects.None,
-                0
-            );
-        }
-        
-        private void DrawRectangleOutline(SpriteBatch spriteBatch, Rectangle rectangle, Color color, int thickness)
-        {
-            Texture2D pixel = GetTexture(spriteBatch.GraphicsDevice);
-            
-            // Верхняя линия
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, rectangle.Width, thickness), color);
-            
-            // Нижняя линия
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y + rectangle.Height - thickness, rectangle.Width, thickness), color);
-            
-            // Левая линия
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X, rectangle.Y, thickness, rectangle.Height), color);
-            
-            // Правая линия
-            spriteBatch.Draw(pixel, new Rectangle(rectangle.X + rectangle.Width - thickness, rectangle.Y, thickness, rectangle.Height), color);
         }
         
         private Texture2D GetTexture(GraphicsDevice graphicsDevice)

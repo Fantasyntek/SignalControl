@@ -16,21 +16,7 @@ namespace SignalControl.UI
         // Отображаем текст используя SpriteFonts
         public static void DrawText(SpriteBatch spriteBatch, string text, Vector2 position, Color color, float scale = 1.0f)
         {
-            if (_font == null)
-            {
-                DrawTextFallback(spriteBatch, text, position, color, scale);
-                return;
-            }
-
-            try
-            {
-                spriteBatch.DrawString(_font, text, position, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0);
-            }
-            catch (ArgumentException)
-            {
-                // Если произошла ошибка из-за неподдерживаемых символов, используем резервный метод
-                DrawTextFallback(spriteBatch, text, position, color, scale);
-            }
+            FontManager.DrawText(spriteBatch, text, position, color, 32 * scale);
         }
 
         // Резервный метод рисования текста (используется, если шрифт не загружен)
@@ -105,39 +91,7 @@ namespace SignalControl.UI
         // Получить размер строки текста
         public static Vector2 MeasureString(string text, float scale = 1.0f)
         {
-            if (_font != null)
-            {
-                return _font.MeasureString(text) * scale;
-            }
-            
-            // Резервный расчет размера
-            float charWidth = 8 * scale;
-            float charHeight = 12 * scale;
-            float spacing = 2 * scale;
-            
-            int maxLineLength = 0;
-            int lines = 1;
-            int lineLength = 0;
-            
-            foreach (char c in text)
-            {
-                if (c == '\n')
-                {
-                    maxLineLength = Math.Max(maxLineLength, lineLength);
-                    lineLength = 0;
-                    lines++;
-                }
-                else
-                {
-                    lineLength++;
-                }
-            }
-            
-            maxLineLength = Math.Max(maxLineLength, lineLength);
-            float width = maxLineLength * (charWidth + spacing);
-            float height = lines * (charHeight + spacing);
-            
-            return new Vector2(width, height);
+            return FontManager.MeasureString(text, 32 * scale);
         }
     }
 } 

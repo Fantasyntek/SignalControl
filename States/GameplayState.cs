@@ -56,8 +56,31 @@ namespace SignalControl.States
             // Загружаем уровень
             LoadLevel(_currentLevel);
             
-            // Создаем кнопки UI
-            _simulateButton = new Button("Запустить сигнал", new Vector2(1100, 540), () => 
+            // Определяем размеры и позиции для UI
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            float gridWidth = _grid.Width * _grid.CellSize;
+            float gridHeight = _grid.Height * _grid.CellSize;
+            
+            // Фиксированные размеры для боковой панели
+            float panelWidth = 280;
+            float panelX = screenWidth - panelWidth - 20; // 20px отступ справа
+            
+            // Вычисляем размеры боковой панели
+            float panelHeight = screenHeight - 50;
+            float buttonAreaStart = 250; // Увеличили отступ сверху для кнопок
+            float buttonSpacing = 80; // Расстояние между кнопками
+            
+            // Центрируем кнопки по ширине панели
+            float buttonX = panelX + panelWidth/2;
+            
+            // Создаем кнопки UI с правильным позиционированием внутри панели
+            _hintButton = new Button("Подсказка", new Vector2(buttonX, buttonAreaStart), () => 
+            {
+                ShowHint();
+            });
+
+            _simulateButton = new Button("Запустить сигнал", new Vector2(buttonX, buttonAreaStart + buttonSpacing), () => 
             {
                 if (!_isSimulating && _remainingActions > 0)
                 {
@@ -65,24 +88,19 @@ namespace SignalControl.States
                 }
             });
             
-            _resetButton = new Button("Сбросить", new Vector2(1100, 600), () => 
+            _resetButton = new Button("Сбросить", new Vector2(buttonX, buttonAreaStart + buttonSpacing * 2), () => 
             {
                 ResetLevel();
             });
             
-            _nextLevelButton = new Button("Следующий уровень", new Vector2(1100, 660), () => 
+            _nextLevelButton = new Button("Следующий уровень", new Vector2(buttonX, buttonAreaStart + buttonSpacing * 3), () => 
             {
                 NextLevel();
             });
             
-            _backButton = new Button("Меню", new Vector2(1100, 720), () => 
+            _backButton = new Button("Меню", new Vector2(buttonX, buttonAreaStart + buttonSpacing * 4), () => 
             {
                 _stateManager.ChangeState(new MenuState(_game, _stateManager, _content));
-            });
-            
-            _hintButton = new Button("Подсказка", new Vector2(1100, 480), () => 
-            {
-                ShowHint();
             });
         }
         
@@ -93,8 +111,18 @@ namespace SignalControl.States
             if (levelData == null)
                 return;
                 
+            // Определяем позицию сетки для центрирования
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            float gridWidth = levelData.GridWidth * 70; // 70 - размер ячейки
+            float gridHeight = levelData.GridHeight * 70;
+            
+            // Централизуем сетку по горизонтали, оставляя место для панели справа
+            float gridX = (screenWidth - 300 - gridWidth) / 2;
+            float gridY = (screenHeight - gridHeight) / 2 - 50; // Немного выше центра
+            
             // Создаем сетку на основе размеров уровня
-            _grid = new Grid(levelData.GridWidth, levelData.GridHeight, new Vector2(300, 150), 70);
+            _grid = new Grid(levelData.GridWidth, levelData.GridHeight, new Vector2(gridX, gridY), 70);
             
             // Загружаем узлы в сетку
             _levelManager.LoadLevelToGrid(_grid);
@@ -118,6 +146,9 @@ namespace SignalControl.States
         
         private void StartSimulation()
         {
+            if (_isSimulating) // Если симуляция уже запущена, не запускаем снова
+                return;
+                
             _isSimulating = true;
             bool result = _grid.SimulateSignal();
             
@@ -128,6 +159,8 @@ namespace SignalControl.States
             else
             {
                 _hasLost = true;
+                // Автоматически сбрасываем уровень через небольшую задержку
+                _gameTimer = 0;
             }
         }
         
@@ -164,6 +197,12 @@ namespace SignalControl.States
                     _showingHint = false;
                     _hintTimer = 0;
                 }
+            }
+            
+            // Если проиграли и прошло 5 секунд, сбрасываем уровень
+            if (_hasLost && _gameTimer >= 5)
+            {
+                ResetLevel();
             }
             
             MouseState currentMouseState = Mouse.GetState();
@@ -264,8 +303,22 @@ namespace SignalControl.States
                 _backgroundColor
             );
             
-            // Рисуем фон игрового поля
-            Rectangle gameArea = new Rectangle(50, 50, 800, 600);
+            // Определяем размеры и позицию игровой области
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            float gridWidth = _grid.Width * _grid.CellSize;
+            float gridHeight = _grid.Height * _grid.CellSize;
+            float gridCenterX = (_grid.Position.X + gridWidth / 2);
+            
+            // Рисуем фон игрового поля с адаптацией под размер сетки
+            int gameAreaPadding = 50; // Отступ от сетки до края игровой области
+            Rectangle gameArea = new Rectangle(
+                (int)Math.Max(_grid.Position.X - gameAreaPadding, 50),
+                (int)Math.Max(_grid.Position.Y - gameAreaPadding, 50),
+                (int)(gridWidth + gameAreaPadding * 2),
+                (int)(gridHeight + gameAreaPadding * 2)
+            );
+            
             spriteBatch.Draw(pixel, gameArea, _panelColor);
             
             // Рисуем рамку
@@ -275,17 +328,27 @@ namespace SignalControl.States
         
         private void DrawSidePanel(SpriteBatch spriteBatch)
         {
-            // Создаем текстуру для панели
+            // Используем те же значения, что и при создании кнопок
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            float panelWidth = 280;
+            float panelX = screenWidth - panelWidth - 20;
+            
+            // Боковая панель
+            Rectangle panelRect = new Rectangle(
+                (int)panelX,
+                25, // Отступ сверху
+                (int)panelWidth,
+                (int)(screenHeight - 50) // Отступ снизу
+            );
+            
+            // Рисуем фон панели
             Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
             pixel.SetData(new[] { Color.White });
-            
-            // Рисуем боковую панель
-            Rectangle panelRect = new Rectangle(900, 50, 330, 600);
             spriteBatch.Draw(pixel, panelRect, _panelColor);
             
             // Рисуем рамку панели
-            int borderThickness = 2;
-            DrawRectangleOutline(spriteBatch, panelRect, Color.White, borderThickness);
+            DrawRectangleOutline(spriteBatch, panelRect, Color.White, 2);
         }
         
         private void DrawRectangleOutline(SpriteBatch spriteBatch, Rectangle rectangle, Color color, int thickness)
@@ -324,13 +387,19 @@ namespace SignalControl.States
         
         private void DrawLevelInfo(SpriteBatch spriteBatch)
         {
-            // Рисуем информацию об уровне
+            // Используем те же значения для позиционирования
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float panelWidth = 280;
+            float panelX = screenWidth - panelWidth - 20;
+            float textX = panelX + 20; // Отступ текста от края панели
+            
+            // Рисуем информацию об уровне с увеличенным отступом сверху
             TextRenderer.DrawText(
                 spriteBatch,
                 $"Уровень: {_currentLevel + 1}",
-                new Vector2(930, 80),
+                new Vector2(textX, 40), // Уменьшили отступ сверху
                 _textColor,
-                1.5f
+                1.0f
             );
             
             // Рисуем индикатор прогресса уровней
@@ -338,8 +407,8 @@ namespace SignalControl.States
             int levelWidth = 20;
             int spacing = 5;
             int totalWidth = totalLevels * levelWidth + (totalLevels - 1) * spacing;
-            int startX = 930 + (250 - totalWidth) / 2;
-            int y = 120;
+            int startX = (int)panelX + ((int)panelWidth - totalWidth) / 2;
+            int y = 80; // Уменьшили отступ для индикатора прогресса
             
             Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
             pixel.SetData(new[] { Color.White });
@@ -351,21 +420,22 @@ namespace SignalControl.States
                 spriteBatch.Draw(pixel, levelRect, levelColor);
             }
             
+            // Рисуем оставшиеся действия
             TextRenderer.DrawText(
                 spriteBatch,
                 $"Осталось действий: {_remainingActions}",
-                new Vector2(930, 150),
+                new Vector2(textX, 130), // Уменьшили отступ
                 _remainingActions > 0 ? _textColor : _failColor,
-                1.5f
+                1.0f
             );
             
             // Таймер
             TextRenderer.DrawText(
                 spriteBatch,
                 $"Время: {(int)_gameTimer} с",
-                new Vector2(930, 190),
+                new Vector2(textX, 170), // Уменьшили отступ
                 _textColor,
-                1.5f
+                1.0f
             );
         }
         
@@ -377,42 +447,71 @@ namespace SignalControl.States
                 var levelData = _levelManager.GetCurrentLevel();
                 if (levelData != null && levelData.IsTutorial && !string.IsNullOrEmpty(levelData.TutorialText))
                 {
-                    // Рисуем обучающее сообщение
-                    Rectangle tutorialBox = new Rectangle(100, 80, 700, 100);
+                    float screenWidth = _game.GraphicsDevice.Viewport.Width;
+                    float screenHeight = _game.GraphicsDevice.Viewport.Height;
+                    float panelWidth = 280;
+                    float panelX = screenWidth - panelWidth - 20;
+                    
+                    // Измеряем текст для определения размеров
+                    Vector2 textSize = TextRenderer.MeasureString(levelData.TutorialText, 1.3f);
+                    
+                    // Добавляем отступы для текста
+                    float textPadding = 40; // Отступ от текста до края фона
+                    float frameWidth = textSize.X + textPadding * 2;
+                    float frameHeight = textSize.Y + textPadding;
+                    
+                    // Позиционируем блок по центру под игровым полем
+                    float centerX = (_grid.Position.X + _grid.Width * _grid.CellSize / 2);
+                    float centerY = _grid.Position.Y + _grid.CellSize * _grid.Height + 60;
+                    
+                    // Создаем фоновый прямоугольник с отступами
+                    Rectangle backgroundBox = new Rectangle(
+                        (int)(centerX - frameWidth / 2),
+                        (int)centerY,
+                        (int)frameWidth,
+                        (int)frameHeight
+                    );
+                    
                     Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
                     pixel.SetData(new[] { Color.White });
                     
+                    // Рисуем внешнюю рамку с эффектом свечения
+                    Rectangle glowBox = new Rectangle(
+                        backgroundBox.X - 2,
+                        backgroundBox.Y - 2,
+                        backgroundBox.Width + 4,
+                        backgroundBox.Height + 4
+                    );
+                    spriteBatch.Draw(pixel, glowBox, new Color((byte)100, (byte)100, (byte)200, (byte)30));
+                    
                     // Фон сообщения
-                    spriteBatch.Draw(pixel, tutorialBox, new Color((byte)0, (byte)0, (byte)0, (byte)180));
+                    spriteBatch.Draw(pixel, backgroundBox, new Color((byte)20, (byte)20, (byte)40, (byte)230));
                     
                     // Рамка сообщения
-                    DrawRectangleOutline(spriteBatch, tutorialBox, _textColor, 2);
+                    DrawRectangleOutline(spriteBatch, backgroundBox, new Color((byte)100, (byte)100, (byte)200), 2);
                     
-                    // Текст обучения
+                    // Вычисляем позицию для идеального центрирования текста
+                    Vector2 textPosition = new Vector2(
+                        backgroundBox.X + (backgroundBox.Width - textSize.X) / 2,
+                        backgroundBox.Y + (backgroundBox.Height - textSize.Y) / 2
+                    );
+                    
+                    // Рисуем тень текста
                     TextRenderer.DrawText(
                         spriteBatch,
                         levelData.TutorialText,
-                        new Vector2(tutorialBox.X + 20, tutorialBox.Y + 20),
-                        _textColor,
-                        1.2f
+                        textPosition + new Vector2(2, 2),
+                        new Color((byte)0, (byte)0, (byte)0, (byte)128),
+                        1.3f
                     );
-                }
-                else
-                {
-                    string instructions = 
-                        "ИНСТРУКЦИЯ:\n\n" +
-                        "- Нажимайте на узлы, чтобы\n" +
-                        "  менять их направление\n\n" +
-                        "- Проведите сигнал от старта\n" +
-                        "  (зеленый) до финиша (красный)\n\n" +
-                        "- Активируйте все контрольные\n" +
-                        "  точки (оранжевые)\n\n" +
-                        "- Действия ограничены!";
                     
-                    TextRenderer.DrawInstructions(
+                    // Рисуем основной текст
+                    TextRenderer.DrawText(
                         spriteBatch,
-                        instructions,
-                        new Vector2(930, 240)
+                        levelData.TutorialText,
+                        textPosition,
+                        _textColor,
+                        1.3f
                     );
                 }
             }
@@ -426,33 +525,63 @@ namespace SignalControl.States
                 
                 // Анимированный победный текст
                 float scale = 2.0f + (float)Math.Sin(_gameTimer * 3) * 0.2f;
+                float centerX = _grid.Position.X + _grid.Width * _grid.CellSize / 2;
+                
+                Vector2 textSize = TextRenderer.MeasureString(winText, scale);
                 
                 TextRenderer.DrawText(
                     spriteBatch,
                     winText,
-                    new Vector2(400 - winText.Length * 6, 50),
+                    new Vector2(centerX - textSize.X / 2, 20),
                     _successColor,
                     scale
                 );
             }
             else if (_hasLost)
             {
-                string loseText = "НЕУДАЧА!";
+                string loseText = "НЕУДАЧА";
+                float scale = 2.0f + (float)Math.Sin(_gameTimer * 3) * 0.1f; // Добавляем анимацию пульсации
+                float centerX = _grid.Position.X + _grid.Width * _grid.CellSize / 2;
                 
+                Vector2 textSize = TextRenderer.MeasureString(loseText, scale);
+                float textY = _grid.Position.Y - 80; // Размещаем текст над игровым полем
+                
+                // Рисуем тень для текста
                 TextRenderer.DrawText(
                     spriteBatch,
                     loseText,
-                    new Vector2(400 - loseText.Length * 6, 50),
+                    new Vector2(centerX - textSize.X / 2 + 2, textY + 2),
+                    new Color(0, 0, 0, 150),
+                    scale
+                );
+                
+                // Рисуем основной текст
+                TextRenderer.DrawText(
+                    spriteBatch,
+                    loseText,
+                    new Vector2(centerX - textSize.X / 2, textY),
                     _failColor,
-                    2.0f
+                    scale
                 );
                 
                 // Подсказка что делать дальше
                 string hint = "Нажмите 'Сбросить' для повторной попытки";
+                Vector2 hintSize = TextRenderer.MeasureString(hint, 1.0f);
+                
+                // Рисуем тень для подсказки
                 TextRenderer.DrawText(
                     spriteBatch,
                     hint,
-                    new Vector2(400 - hint.Length * 4, 100),
+                    new Vector2(centerX - hintSize.X / 2 + 1, textY + 50 + 1),
+                    new Color(0, 0, 0, 150),
+                    1.0f
+                );
+                
+                // Рисуем текст подсказки
+                TextRenderer.DrawText(
+                    spriteBatch,
+                    hint,
+                    new Vector2(centerX - hintSize.X / 2, textY + 50),
                     _textColor,
                     1.0f
                 );
@@ -466,18 +595,30 @@ namespace SignalControl.States
                 // Рисуем подсказку
                 string hintText = "Подсказка: " + _levelManager.GetCurrentLevel().Hint;
                 
+                // Вычисляем размеры и позицию подсказки для центрирования
+                Vector2 hintSize = TextRenderer.MeasureString(hintText, 1.2f);
+                float centerX = _grid.Position.X + _grid.Width * _grid.CellSize / 2;
+                float boxWidth = Math.Max(hintSize.X + 40, 700);
+                float boxHeight = Math.Max(hintSize.Y + 40, 60);
+                
                 // Создаем фон для подсказки
                 Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
                 pixel.SetData(new[] { Color.White });
                 
-                Rectangle hintBox = new Rectangle(100, 650, 700, 60);
+                Rectangle hintBox = new Rectangle(
+                    (int)(centerX - boxWidth / 2), 
+                    (int)(_grid.Position.Y + _grid.Height * _grid.CellSize + 30),
+                    (int)boxWidth, 
+                    (int)boxHeight
+                );
+                
                 spriteBatch.Draw(pixel, hintBox, new Color((byte)0, (byte)0, (byte)0, (byte)180));
                 DrawRectangleOutline(spriteBatch, hintBox, _hintColor, 2);
                 
                 TextRenderer.DrawText(
                     spriteBatch,
                     hintText,
-                    new Vector2(hintBox.X + 20, hintBox.Y + 20),
+                    new Vector2(hintBox.X + 20, hintBox.Y + (hintBox.Height - hintSize.Y) / 2),
                     _hintColor,
                     1.2f
                 );

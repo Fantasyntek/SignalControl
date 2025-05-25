@@ -9,6 +9,8 @@ namespace SignalControl.Managers
     {
         private GameState _currentState;
 
+        public GameState CurrentState => _currentState;
+
         public void ChangeState(GameState newState)
         {
             _currentState?.UnloadContent();

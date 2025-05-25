@@ -32,13 +32,19 @@ namespace SignalControl.States
         
         public override void LoadContent()
         {
+            // Определение размеров экрана для правильного позиционирования
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            float centerX = screenWidth / 2;
+            
             // Создаем кнопки для каждого уровня
             int levelsCount = _levelManager.GetLevelsCount();
             int buttonsPerRow = 3;
-            int buttonWidth = 150;
-            int buttonHeight = 150;
-            int startX = 640 - (Math.Min(buttonsPerRow, levelsCount) * buttonWidth) / 2 + buttonWidth/2;
-            int startY = 200;
+            int buttonWidth = 200;
+            int buttonHeight = 200;
+            // Вычисляем позиции относительно центра экрана
+            int startX = (int)centerX - (Math.Min(buttonsPerRow, levelsCount) * buttonWidth) / 2 + buttonWidth/2;
+            int startY = 250;
             
             for (int i = 0; i < levelsCount; i++)
             {
@@ -55,8 +61,8 @@ namespace SignalControl.States
                 }));
             }
             
-            // Кнопка возврата в меню
-            _backButton = new Button("Назад", new Vector2(640, 650), () => 
+            // Кнопка возврата в меню (внизу по центру)
+            _backButton = new Button("Назад", new Vector2(centerX, screenHeight - 100), () => 
             {
                 _stateManager.ChangeState(new MenuState(_game, _stateManager, _content));
             });
@@ -104,12 +110,13 @@ namespace SignalControl.States
             // Рисуем фон
             DrawBackground(spriteBatch);
             
-            // Рисуем заголовок
+            // Рисуем заголовок с учетом центрирования
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
             string title = "Выбор уровня";
             TextRenderer.DrawText(
                 spriteBatch,
                 title,
-                new Vector2(640 - title.Length * 10, 100),
+                new Vector2(screenWidth / 2 - TextRenderer.MeasureString(title, 2.0f).X / 2, 100),
                 _titleColor,
                 2.0f
             );
@@ -126,6 +133,10 @@ namespace SignalControl.States
         
         private void DrawBackground(SpriteBatch spriteBatch)
         {
+            // Получаем размеры экрана для адаптивного UI
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            
             // Создаем фоновую текстуру
             Texture2D pixel = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
             pixel.SetData(new[] { Color.White });
@@ -133,12 +144,18 @@ namespace SignalControl.States
             // Рисуем основной фон
             spriteBatch.Draw(
                 pixel,
-                new Rectangle(0, 0, _game.GraphicsDevice.Viewport.Width, _game.GraphicsDevice.Viewport.Height),
+                new Rectangle(0, 0, (int)screenWidth, (int)screenHeight),
                 _backgroundColor
             );
             
+            // Вычисляем размер и позицию панели относительно размера экрана
+            int panelWidth = Math.Min(1000, (int)(screenWidth * 0.8f));
+            int panelHeight = Math.Min(800, (int)(screenHeight * 0.85f));
+            int panelX = (int)(screenWidth / 2 - panelWidth / 2);
+            int panelY = (int)(screenHeight / 2 - panelHeight / 2);
+            
             // Рисуем декоративную панель
-            Rectangle panelRect = new Rectangle(200, 50, 880, 620);
+            Rectangle panelRect = new Rectangle(panelX, panelY, panelWidth, panelHeight);
             spriteBatch.Draw(pixel, panelRect, _panelColor);
             
             // Рисуем рамку панели

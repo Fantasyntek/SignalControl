@@ -22,12 +22,14 @@ namespace SignalControl.UI
             _text = text;
             _onClick = onClick;
             
-            // Размер кнопки пропорционален длине текста
-            int width = 200;
-            if (text.Length > 10)
-                width = 250;
+            // Измеряем размер текста для определения минимальной ширины кнопки
+            Vector2 textSize = TextRenderer.MeasureString(text);
             
-            _rectangle = new Rectangle((int)position.X - width/2, (int)position.Y - 25, width, 50);
+            // Фиксированный размер для всех кнопок
+            int width = 200; // Фиксированная ширина для всех кнопок
+            int height = 60; // Фиксированная высота для всех кнопок
+            
+            _rectangle = new Rectangle((int)position.X - width/2, (int)position.Y - height/2, width, height);
         }
         
         public void Update(MouseState mouseState)
@@ -42,17 +44,33 @@ namespace SignalControl.UI
             Color backgroundColor = IsHovering ? _hoverColor : _normalColor;
             spriteBatch.Draw(GetTexture(spriteBatch.GraphicsDevice), _rectangle, backgroundColor);
             
-            // Рамка кнопки
-            DrawRectangleOutline(spriteBatch, _rectangle, _borderColor, IsHovering ? 2 : 1);
+            // Рамка кнопки с увеличенной толщиной
+            DrawRectangleOutline(spriteBatch, _rectangle, _borderColor, IsHovering ? 3 : 2);
             
-            // Текст кнопки
+            // Измеряем текст для точного центрирования
             Vector2 textSize = TextRenderer.MeasureString(_text);
+            
+            // Вычисляем масштаб текста, если он не помещается
+            float scale = 1.2f; // Увеличиваем базовый размер текста
+            if (textSize.X * scale > _rectangle.Width - 40 || textSize.Y * scale > _rectangle.Height - 20)
+            {
+                scale = Math.Min(
+                    (_rectangle.Width - 40) / textSize.X,
+                    (_rectangle.Height - 20) / textSize.Y
+                );
+            }
+            
+            // Пересчитываем размер текста с учетом масштаба
+            Vector2 scaledTextSize = textSize * scale;
+            
+            // Вычисляем позицию для центрирования
             Vector2 textPosition = new Vector2(
-                _rectangle.X + (_rectangle.Width / 2) - (textSize.X / 2),
-                _rectangle.Y + (_rectangle.Height / 2) - (textSize.Y / 2)
+                _rectangle.X + (_rectangle.Width - scaledTextSize.X) / 2,
+                _rectangle.Y + (_rectangle.Height - scaledTextSize.Y) / 2
             );
             
-            TextRenderer.DrawText(spriteBatch, _text, textPosition, _textColor);
+            // Рисуем текст
+            TextRenderer.DrawText(spriteBatch, _text, textPosition, _textColor, scale);
         }
         
         private void DrawRectangleOutline(SpriteBatch spriteBatch, Rectangle rectangle, Color color, int thickness)

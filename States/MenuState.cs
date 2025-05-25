@@ -27,20 +27,21 @@ namespace SignalControl.States
 
         public override void LoadContent()
         {
-            // Создаем кнопки
-            Vector2 position = new Vector2(640, 320);
+            // Создаем кнопки с правильным центрированием
+            float centerX = _game.GraphicsDevice.Viewport.Width / 2;
+            Vector2 position = new Vector2(centerX, 400);
             _buttons.Add(new Button("Начать игру", position, () => 
             {
                 _stateManager.ChangeState(new GameplayState(_game, _stateManager, _content, 0));
             }));
             
-            position.Y += 80;
+            position.Y += 100;
             _buttons.Add(new Button("Выбор уровня", position, () => 
             {
                 _stateManager.ChangeState(new LevelSelectState(_game, _stateManager, _content));
             }));
             
-            position.Y += 80;
+            position.Y += 100;
             _buttons.Add(new Button("Выход", position, () => 
             {
                 _game.Exit();
@@ -164,12 +165,13 @@ namespace SignalControl.States
         {
             // Создаем эффект "пульсации" для заголовка
             float scale = 2.5f + (float)Math.Sin(_animTime * 2) * 0.1f;
+            float centerX = _game.GraphicsDevice.Viewport.Width / 2;
             
             // Рисуем основной заголовок
             TextRenderer.DrawText(
                 spriteBatch,
                 _title,
-                new Vector2(640 - _title.Length * 7 * scale/2, 150),
+                new Vector2(centerX - TextRenderer.MeasureString(_title, scale).X / 2, 200),
                 _titleColor,
                 scale
             );
@@ -178,7 +180,7 @@ namespace SignalControl.States
             TextRenderer.DrawText(
                 spriteBatch,
                 _title,
-                new Vector2(643 - _title.Length * 7 * scale/2, 153),
+                new Vector2(centerX - TextRenderer.MeasureString(_title, scale).X / 2 + 3, 203),
                 new Color((byte)50, (byte)50, (byte)150),
                 scale
             );
@@ -188,7 +190,7 @@ namespace SignalControl.States
             TextRenderer.DrawText(
                 spriteBatch,
                 subtitle,
-                new Vector2(640 - subtitle.Length * 5, 230),
+                new Vector2(centerX - TextRenderer.MeasureString(subtitle, 1.2f).X / 2, 280),
                 _textColor,
                 1.2f
             );
@@ -197,11 +199,12 @@ namespace SignalControl.States
         private void DrawInstructions(SpriteBatch spriteBatch)
         {
             string controls = "Управление: используйте мышь для выбора и поворота узлов";
+            float centerX = _game.GraphicsDevice.Viewport.Width / 2;
             Vector2 textSize = TextRenderer.MeasureString(controls, 1.0f);
             TextRenderer.DrawText(
                 spriteBatch,
                 controls,
-                new Vector2(640 - textSize.X / 2, 500),
+                new Vector2(centerX - textSize.X / 2, _game.GraphicsDevice.Viewport.Height - 75),
                 _textColor,
                 1.0f
             );
@@ -209,20 +212,24 @@ namespace SignalControl.States
         
         private void DrawAuthorInfo(SpriteBatch spriteBatch)
         {
-            string version = "Версия 1.0";
+            float screenWidth = _game.GraphicsDevice.Viewport.Width;
+            float screenHeight = _game.GraphicsDevice.Viewport.Height;
+            
+            string version = "Версия 2.0";
             TextRenderer.DrawText(
                 spriteBatch,
                 version,
-                new Vector2(20, _game.GraphicsDevice.Viewport.Height - 30),
+                new Vector2(20, screenHeight - 30),
                 _textColor,
                 0.8f
             );
             
             string copyright = "(c) 2025 Signal Control";
+            Vector2 copyrightSize = TextRenderer.MeasureString(copyright, 0.8f);
             TextRenderer.DrawText(
                 spriteBatch,
                 copyright,
-                new Vector2(_game.GraphicsDevice.Viewport.Width - copyright.Length * 10, _game.GraphicsDevice.Viewport.Height - 30),
+                new Vector2(screenWidth - copyrightSize.X - 20, screenHeight - 30),
                 _textColor,
                 0.8f
             );

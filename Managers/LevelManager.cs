@@ -23,8 +23,26 @@ namespace SignalControl.Managers
         
         private void CreateDefaultLevels()
         {
-            // Level 1
+            // Level 1 - Tutorial level
             var level1 = new LevelData
+            {
+                GridWidth = 4,
+                GridHeight = 4,
+                ActionLimit = 5,
+                Nodes = new List<NodeData>
+                {
+                    new NodeData { X = 0, Y = 0, Type = NodeType.Start, Direction = Direction.Right },
+                    new NodeData { X = 3, Y = 3, Type = NodeType.Finish, Direction = Direction.Left },
+                    new NodeData { X = 1, Y = 1, Type = NodeType.Normal, Direction = Direction.Right }
+                },
+                IsTutorial = true,
+                TutorialText = "Поверните узел, чтобы направить сигнал к финишу.",
+                Hint = "Нажмите на узел в позиции (1,1), чтобы повернуть его вниз."
+            };
+            _levels.Add(level1);
+            
+            // Level 2
+            var level2 = new LevelData
             {
                 GridWidth = 5,
                 GridHeight = 5,
@@ -39,10 +57,10 @@ namespace SignalControl.Managers
                 },
                 Hint = "Сначала направьте сигнал к контрольной точке в центре, затем к финишу."
             };
-            _levels.Add(level1);
+            _levels.Add(level2);
             
-            // Level 2
-            var level2 = new LevelData
+            // Level 3
+            var level3 = new LevelData
             {
                 GridWidth = 6,
                 GridHeight = 6,
@@ -58,24 +76,6 @@ namespace SignalControl.Managers
                     new NodeData { X = 4, Y = 2, Type = NodeType.Blocking, Direction = Direction.Left }
                 },
                 Hint = "Активируйте обе контрольные точки. Начните с верхней правой части сетки."
-            };
-            _levels.Add(level2);
-            
-            // Level 3 - Tutorial level
-            var level3 = new LevelData
-            {
-                GridWidth = 4,
-                GridHeight = 4,
-                ActionLimit = 5,
-                Nodes = new List<NodeData>
-                {
-                    new NodeData { X = 0, Y = 0, Type = NodeType.Start, Direction = Direction.Right },
-                    new NodeData { X = 3, Y = 3, Type = NodeType.Finish, Direction = Direction.Left },
-                    new NodeData { X = 1, Y = 1, Type = NodeType.Normal, Direction = Direction.Right }
-                },
-                IsTutorial = true,
-                TutorialText = "Добро пожаловать! Поверните узел, чтобы направить сигнал к финишу.",
-                Hint = "Нажмите на узел в позиции (1,1), чтобы повернуть его вниз."
             };
             _levels.Add(level3);
         }
@@ -99,6 +99,7 @@ namespace SignalControl.Managers
             // Apply level data to grid
             foreach (var nodeData in levelData.Nodes)
             {
+                grid.SetNodeType(nodeData.X, nodeData.Y, nodeData.Type);
                 var node = grid.GetNode(nodeData.X, nodeData.Y);
                 if (node != null)
                 {

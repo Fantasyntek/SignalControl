@@ -4,6 +4,8 @@ using Microsoft.Xna.Framework.Input;
 using SignalControl.States;
 using SignalControl.Managers;
 using SignalControl.UI;
+using System.IO;
+using System;
 
 namespace SignalControl
 {
@@ -13,7 +15,6 @@ namespace SignalControl
         private SpriteBatch _spriteBatch;
         private StateManager _stateManager;
         private Color _backgroundColor = new Color((byte)20, (byte)20, (byte)40); // Темно-синий фон
-        private SpriteFont _font;
 
         public SignalControlGame()
         {
@@ -37,14 +38,30 @@ namespace SignalControl
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             
-            // Загружаем шрифт
-            _font = Content.Load<SpriteFont>("Arial");
-            
-            // Инициализируем TextRenderer с загруженным шрифтом
-            TextRenderer.Initialize(_font);
+            try
+            {
+                // Загружаем шрифт
+                string fontPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Content", "Fonts", "Roboto-Regular.ttf");
+                Console.WriteLine($"Attempting to load font from: {fontPath}");
+                
+                if (!File.Exists(fontPath))
+                {
+                    Console.WriteLine($"Font file not found at: {fontPath}");
+                    throw new FileNotFoundException($"Font file not found at: {fontPath}");
+                }
+                
+                byte[] fontData = File.ReadAllBytes(fontPath);
+                FontManager.Initialize(GraphicsDevice, fontData);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading font: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                throw;
+            }
             
             // Инициализируем TextureManager
-            TextureManager.Initialize(GraphicsDevice);
+            TextureManager.Initialize(GraphicsDevice, Content);
             
             // Initialize first state
             _stateManager.ChangeState(new MenuState(this, _stateManager, Content));
@@ -52,10 +69,11 @@ namespace SignalControl
 
         protected override void Update(GameTime gameTime)
         {
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || 
+                Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            _stateManager.Update(gameTime);
+            _stateManager.CurrentState?.Update(gameTime);
 
             base.Update(gameTime);
         }
@@ -63,9 +81,17 @@ namespace SignalControl
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(_backgroundColor);
+
+            // Используем правильные настройки для SpriteBatch
+            _spriteBatch.Begin(
+                SpriteSortMode.Deferred,
+                BlendState.AlphaBlend,
+                SamplerState.LinearClamp,
+                DepthStencilState.None,
+                RasterizerState.CullNone
+            );
             
-            _spriteBatch.Begin();
-            _stateManager.Draw(_spriteBatch);
+            _stateManager.CurrentState?.Draw(_spriteBatch);
             _spriteBatch.End();
 
             base.Draw(gameTime);

@@ -9,13 +9,18 @@ namespace SignalControl.Models
     public class Grid
     {
         private Node[,] _nodes;
-        private Vector2 _position;
-        private int _cellSize;
-        private int _width;
-        private int _height;
         private Node _startNode;
         private Node _finishNode;
         private List<Node> _checkpointNodes;
+        private Vector2 _position;
+        private int _width;
+        private int _height;
+        private int _cellSize;
+        
+        public int Width => _width;
+        public int Height => _height;
+        public int CellSize => _cellSize;
+        public Vector2 Position => _position;
         
         public Grid(int width, int height, Vector2 position, int cellSize)
         {
@@ -25,24 +30,13 @@ namespace SignalControl.Models
             _cellSize = cellSize;
             _checkpointNodes = new List<Node>();
             
-            InitializeGrid();
-        }
-        
-        private void InitializeGrid()
-        {
-            _nodes = new Node[_width, _height];
-            
-            // Create nodes
-            for (int x = 0; x < _width; x++)
+            // Initialize grid
+            _nodes = new Node[width, height];
+            for (int x = 0; x < width; x++)
             {
-                for (int y = 0; y < _height; y++)
+                for (int y = 0; y < height; y++)
                 {
-                    Vector2 nodePosition = new Vector2(
-                        _position.X + x * _cellSize,
-                        _position.Y + y * _cellSize
-                    );
-                    
-                    _nodes[x, y] = new Node(nodePosition, _cellSize);
+                    _nodes[x, y] = new Node(x, y, NodeType.Normal, Direction.Right);
                 }
             }
         }
@@ -91,11 +85,36 @@ namespace SignalControl.Models
         
         public void Draw(SpriteBatch spriteBatch)
         {
+            // Draw grid cells
             for (int x = 0; x < _width; x++)
             {
                 for (int y = 0; y < _height; y++)
                 {
-                    _nodes[x, y].Draw(spriteBatch);
+                    _nodes[x, y].Draw(spriteBatch, new Vector2(_position.X + x * _cellSize, _position.Y + y * _cellSize), _cellSize);
+                }
+            }
+        }
+        
+        public void Update(GameTime gameTime)
+        {
+            // Update grid cells
+            for (int x = 0; x < _width; x++)
+            {
+                for (int y = 0; y < _height; y++)
+                {
+                    _nodes[x, y].Update(gameTime);
+                }
+            }
+        }
+        
+        public void ResetSignal()
+        {
+            foreach (Node node in _nodes)
+            {
+                node.IsSignalPassing = false;
+                if (node.Type == NodeType.Checkpoint)
+                {
+                    node.IsActive = false;
                 }
             }
         }
@@ -109,10 +128,22 @@ namespace SignalControl.Models
             foreach (Node node in _nodes)
             {
                 node.IsSignalPassing = false;
+                if (node.Type == NodeType.Checkpoint)
+                {
+                    node.IsActive = false; // Сбрасываем активацию чекпоинтов
+                }
             }
             
             // Start signal propagation from start node
-            return PropagateSignal(_startNode);
+            bool result = PropagateSignal(_startNode);
+            
+            // Проверяем, что сигнал прошел через все чекпоинты
+            if (result && _checkpointNodes.Count > 0)
+            {
+                result = _checkpointNodes.All(checkpoint => checkpoint.IsSignalPassing);
+            }
+            
+            return result;
         }
         
         private bool PropagateSignal(Node currentNode)
@@ -120,22 +151,22 @@ namespace SignalControl.Models
             // Mark current node as having signal
             currentNode.IsSignalPassing = true;
             
-            // Activate checkpoint if we pass through it
+            // Если это чекпоинт, активируем его
             if (currentNode.Type == NodeType.Checkpoint)
             {
                 currentNode.IsActive = true;
+            }
+            
+            // Если достигли финиша, уровень пройден
+            if (currentNode == _finishNode)
+            {
+                return true;
             }
 
             // If current node is blocking and not active, signal can't pass
             if (currentNode.Type == NodeType.Blocking && !currentNode.IsActive)
             {
                 return false;
-            }
-            
-            // If we reached finish node and all checkpoints are active, it's a win
-            if (currentNode == _finishNode)
-            {
-                return _checkpointNodes.All(checkpoint => checkpoint.IsActive);
             }
             
             // Get next node based on current direction
@@ -151,53 +182,26 @@ namespace SignalControl.Models
         
         private Node GetNextNode(Node currentNode)
         {
-            int x = (int)((currentNode.Bounds.X - _position.X) / _cellSize);
-            int y = (int)((currentNode.Bounds.Y - _position.Y) / _cellSize);
-            
-            // Get coordinates of next node based on direction
+            int nextX = currentNode.X;
+            int nextY = currentNode.Y;
+
             switch (currentNode.Direction)
             {
                 case Direction.Up:
-                    y--;
+                    nextY--;
                     break;
                 case Direction.Right:
-                    x++;
+                    nextX++;
                     break;
                 case Direction.Down:
-                    y++;
+                    nextY++;
                     break;
                 case Direction.Left:
-                    x--;
+                    nextX--;
                     break;
             }
-            
-            // Check if next position is valid
-            if (x >= 0 && x < _width && y >= 0 && y < _height)
-            {
-                return _nodes[x, y];
-            }
-            
-            return null;
-        }
-        
-        public void ResetSignal()
-        {
-            foreach (var node in _nodes)
-            {
-                node.ResetSignal();
-            }
-        }
 
-        public void Update(GameTime gameTime)
-        {
-            // Обновляем все узлы
-            for (int x = 0; x < _width; x++)
-            {
-                for (int y = 0; y < _height; y++)
-                {
-                    _nodes[x, y].Update(gameTime);
-                }
-            }
+            return GetNode(nextX, nextY);
         }
     }
 } 
