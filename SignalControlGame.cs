@@ -40,18 +40,9 @@ namespace SignalControl
             
             try
             {
-                // Загружаем шрифт
-                string fontPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Content", "Fonts", "Roboto-Regular.ttf");
-                Console.WriteLine($"Attempting to load font from: {fontPath}");
-                
-                if (!File.Exists(fontPath))
-                {
-                    Console.WriteLine($"Font file not found at: {fontPath}");
-                    throw new FileNotFoundException($"Font file not found at: {fontPath}");
-                }
-                
-                byte[] fontData = File.ReadAllBytes(fontPath);
-                FontManager.Initialize(GraphicsDevice, fontData);
+                // Load the Arial SpriteFont
+                var font = Content.Load<SpriteFont>("Arial");
+                TextRenderer.Initialize(font);
             }
             catch (Exception ex)
             {
@@ -60,7 +51,7 @@ namespace SignalControl
                 throw;
             }
             
-            // Инициализируем TextureManager
+            // Initialize TextureManager
             TextureManager.Initialize(GraphicsDevice, Content);
             
             // Initialize first state
@@ -81,7 +72,7 @@ namespace SignalControl
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(_backgroundColor);
-
+            
             // Используем правильные настройки для SpriteBatch
             _spriteBatch.Begin(
                 SpriteSortMode.Deferred,
@@ -97,4 +88,4 @@ namespace SignalControl
             base.Draw(gameTime);
         }
     }
-} 
+}

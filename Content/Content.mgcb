@@ -31,6 +31,3 @@
 /processorParam:TextureFormat=Color
 /build:arrow.png
 
-#begin Roboto-Regular.ttf
-/copy:Roboto-Regular.ttf
-

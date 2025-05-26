@@ -110,7 +110,7 @@ namespace SignalControl.Models
         public void ResetSignal()
         {
             foreach (Node node in _nodes)
-            {
+        {
                 node.IsSignalPassing = false;
                 if (node.Type == NodeType.Checkpoint)
                 {
@@ -184,7 +184,7 @@ namespace SignalControl.Models
         {
             int nextX = currentNode.X;
             int nextY = currentNode.Y;
-
+            
             switch (currentNode.Direction)
             {
                 case Direction.Up:
@@ -200,7 +200,7 @@ namespace SignalControl.Models
                     nextX--;
                     break;
             }
-
+            
             return GetNode(nextX, nextY);
         }
     }
